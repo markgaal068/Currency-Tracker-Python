@@ -3,27 +3,27 @@ import mysql.connector
 from datetime import datetime
 import time
 
-# MySQL konfiguráció
+# DB Config
 DB_CONFIG = {
     "host": "localhost",
     "user": "root",
-    "password": "admin",  # Cseréld le a saját jelszavadra
+    "password": "admin",
     "database": "currencyvalue"
 }
 
-# Árfolyam API URL-ek
+#API-k
 EXCHANGE_RATES_API = "https://open.er-api.com/v6/latest/USD"
 CRYPTO_API = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd"
 
-# Adatok lekérése az árfolyam API-ról
+# Adatlekérés - deviza
 def fetch_exchange_rates():
     response = requests.get(EXCHANGE_RATES_API)
     if response.status_code == 200:
         return response.json()["rates"]
     else:
-        raise Exception("Nem sikerült lekérni a devizaárfolyamokat.")
+        raise Exception("Deviza adatok lekérése sikertelen!")
 
-# Adatok lekérése a kriptovaluta API-ról
+# Adatlekérés - kripto
 def fetch_crypto_rates():
     response = requests.get(CRYPTO_API)
     if response.status_code == 200:
@@ -33,9 +33,9 @@ def fetch_crypto_rates():
             {"symbol": "ETH", "rate": data["ethereum"]["usd"], "timestamp": datetime.now()},
         ]
     else:
-        raise Exception("Nem sikerült lekérni a kriptovaluta árfolyamokat.")
+        raise Exception("Kripto adatok lekérése sikertelen!")
 
-# Táblák létrehozása
+# Tábla létrehozás
 def create_table(cursor, table_name):
     cursor.execute(
         f"""
@@ -48,7 +48,7 @@ def create_table(cursor, table_name):
         """
     )
 
-# Adatok tárolása az adatbázisban
+# Adatok tárolása
 def store_rates(cursor, table_name, rates):
     for rate in rates:
         cursor.execute(
@@ -56,14 +56,14 @@ def store_rates(cursor, table_name, rates):
             (rate["symbol"], rate["rate"], rate["timestamp"])
         )
 
-# Időzített fő funkció
+# Időzítés
 def run_tracker():
     try:
-        # MySQL kapcsolat
+        # DB kapcsolat
         connection = mysql.connector.connect(**DB_CONFIG)
         cursor = connection.cursor()
 
-        # Deviza árfolyamok lekérése és tárolása
+        # Deviza lekérés és tárolás
         exchange_rates = fetch_exchange_rates()
         timestamp = datetime.now()
         for currency, rate in exchange_rates.items():
@@ -71,15 +71,15 @@ def run_tracker():
             create_table(cursor, table_name)
             store_rates(cursor, table_name, [{"symbol": currency, "rate": rate, "timestamp": timestamp}])
 
-        # Kriptovaluta árfolyamok lekérése és tárolása
+        # Kriptovaluta lekérés és tárolás
         crypto_rates = fetch_crypto_rates()
         crypto_table = "crypto_rates"
         create_table(cursor, crypto_table)
         store_rates(cursor, crypto_table, crypto_rates)
 
-        # Adatok mentése az adatbázisban
+        # Adatok mentése
         connection.commit()
-        print("Adatok sikeresen mentve az adatbázisba.")
+        print("Adatok mentése sikeresen megtörtént!")
 
     except Exception as e:
         print(f"Hiba történt: {e}")
@@ -89,13 +89,13 @@ def run_tracker():
             connection.close()
 
 if __name__ == "__main__":
-    #Script időzítése
-    print("Indul az árfolyamkövető program.")
+    #Időzítés
+    print("Indul az árfolyamkövető!")
     while True:
         current_time = datetime.now()
-        if current_time.hour == 0 and current_time.minute == 0:  # Idő, hogy mikor fusson le
+        if current_time.hour == 0 and current_time.minute == 0:  
             run_tracker()
             print("Futtatás befejezve. 24 óra várakozás.")
-            time.sleep(86400)  # Milyen időközönként fusson le (másodpercben megadva)
+            time.sleep(86400)
         else:
-            time.sleep(30)  # 30 másodpercenként újrafut sikertelenség esetén
+            time.sleep(30)
